@@ -59,7 +59,7 @@ class AdaPool(Pooling2D):
         if data_format == 'channels_first':
             input = tf.transpose(input, [0, 2, 3, 1])
         patches = tf.image.extract_patches(input, ksize, strides, [1, 1, 1, 1], padding)
-        patches = tf.stack(tf.split(patches, patches.shape[-1] // self.n_ch, -1), -1)
+        # patches = tf.stack(tf.split(patches, patches.shape[-1] // self.n_ch, -1), -1)
         return self.eMPool(patches) * self.beta + self.eDSCWPool(patches) * (1 - self.beta)
 
 ########################################################################################################################
