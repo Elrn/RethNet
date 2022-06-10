@@ -5,8 +5,6 @@ import numpy as np
 
 import modules
 
-
-
 #######################################################################################################################
 def REthinker(filters, patch_size=None):
     sizes = [1, patch_size, patch_size, 1]
@@ -18,7 +16,6 @@ def REthinker(filters, patch_size=None):
 
         Args:
             C: 패치 추출 이전의 원형 채널
-
         """
         def sort_by_channel(x):
             # Need to sort by channel since tf.extract_patches give channel mixed output
@@ -37,7 +34,7 @@ def REthinker(filters, patch_size=None):
         return main
 
     def post_processing():
-        def reconstruction(N):
+        def reconstruction(patch_size):
             """
             args:
                 N: Patch size
@@ -53,17 +50,21 @@ def REthinker(filters, patch_size=None):
 
                 x = tf.transpose(x, [0,1,3,2])
                 b, h, c, w = x.shape
-                shape = [-1, h*N, c//N, w]
+                shape = [-1, h * patch_size, c // patch_size, w]
                 x = tf.reshape(x, shape)
                 x = tf.transpose(x, [0,1,3,2])
                 b, h, w, c = x.shape
-                shape = [-1, h, w*N, c//N]
+                shape = [-1, h, w * patch_size, c // patch_size]
                 x = tf.reshape(x, shape)
                 return x
             return main
 
         def main(x):
-            reconstruction()
+            _, x_nP, y_nP, n_ch, psz = x.shape
+            # input.shape = [-1, xpsz, ypsz, c, ppc//c]
+            x = tf.transpose(x, [0, 2, 3, 1, 4]) # [_, nP_x, nP_y, x_psz * y_psz, C]
+            x = tf.reshape(x, [-1, x_nP, y_nP, n_ch*psz])
+            x = reconstruction(psz)(x)
             return x
         return main
 
@@ -89,8 +90,11 @@ def REthinker(filters, patch_size=None):
     def main(x):
         _, H, W, C = x.shape
         assert H % patch_size == 0 and W % patch_size == 0
-        skip = layers.SE(0.125)(x)
 
+        x = BatchNormalization()(x)
+        x = tf.nn.relu(x)
+
+        skip = layers.SE(0.125)(x)
         x = tf.image.extract_patches(
             images=x,
             sizes=sizes,
@@ -101,16 +105,16 @@ def REthinker(filters, patch_size=None):
         x = pre_processing(C)(x)
         x = encoding(x, mode=1)
         x = post_processing()(x)
-        x += skip
+        x *= skip
         return x
     return main
 
 def Xception(filters):
     def main(x):
-        x = Dense(filters)(x)
-        x = modules.conv(filters, kernel=3, padding='same', groups=filters)(x)
         x = BatchNormalization()(x)
         x = tf.nn.relu(x)
+        x = Dense(filters)(x)
+        x = modules.conv(filters, kernel=3, padding='same', groups=filters)(x)
         return x
     return main
 
@@ -120,5 +124,27 @@ def base(filters, pool=2):
         x = REthinker(filters)(x)
         if pool != None:
             x = modules.pooling(pool, pool)(x)
+        return x
+    return main
+
+def ASPP(filters, div=4, kernel=3):
+    concat_list = []
+    div_channel = filters // div
+    attn = layers.sep_bias(div)
+
+    def main(x, skip):
+        x = BatchNormalization()(x)
+        x = tf.nn.relu(x)
+        features = [modules.conv(div_channel, 1)(attn(x, i))
+                    for i in range(div)]
+        for feature in features:
+            x = modules.conv(div_channel, kernel, strides=2,
+                                      padding='same')(feature)
+            for j in range(1, 4):
+                x += modules.conv(div_channel, kernel, dilation_rate=j,
+                                  padding='same', groups=div_channel)(x)
+            concat_list.append(x)
+        concat_list.append(skip)
+        x = tf.concat(concat_list, -1)
         return x
     return main

@@ -27,7 +27,40 @@ import numpy as np
 EPSILON = tf.keras.backend.epsilon()
 NEW = tf.newaxis
 ########################################################################################################################
+def resize(scale):
+    dtype = tf.float32 if type(scale) == float else tf.int32
+    def main(x):
+        shape = x.shape[1:3]
+        shape = tf.math.multiply(tf.cast(shape, dtype), scale)
+        if type(scale) == float:
+            shape = tf.cast(shape, tf.int32)
+        x = tf.image.resize(x, shape)
+        return x
+    return main
 
+########################################################################################################################
+class sep_bias(Layer):
+    def __init__(self, input_dims):
+        super(sep_bias, self).__init__()
+        assert input_dims > 0
+        self.input_dims = input_dims
+
+    def build(self, input_shape):
+        self.scale = Embedding(self.input_dims, input_shape[-1], embeddings_initializer='ones')
+        self.offset = Embedding(self.input_dims, input_shape[-1], embeddings_initializer='zeros')
+
+    def call(self, inputs, label=0, training=None):
+        assert self.input_dims >= label
+        x = self.scale(label) * (inputs + self.offset(label))
+        return tf.nn.relu(x)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "scale": self.scale,
+            "offset": self.offset,
+        })
+        return config
 ########################################################################################################################
 class AdaPool(Pooling2D):
     """

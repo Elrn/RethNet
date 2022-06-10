@@ -2,7 +2,6 @@
 
 import tensorflow as tf
 import utils, models, metrics, losses, callbacks
-from Data import stroke
 from tensorflow.python.keras.callbacks import *
 
 import re
@@ -11,8 +10,6 @@ from absl import app
 import flags
 FLAGS = flags.FLAGS
 
-# import tensorflow.experimental.numpy as tnp
-# tnp.experimental_enable_numpy_behavior()
 ########################################################################################################################
 def main(*argv, **kwargs):
     if argv[0] == __file__:

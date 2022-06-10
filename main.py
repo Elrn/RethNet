@@ -3,7 +3,7 @@ import tensorflow as tf
 import os, logging, re
 from absl import app
 import nibabel as nib
-from Data import stroke
+from Dataset import skin_lesion
 from os.path import join
 import flags, utils, train
 FLAGS = flags.FLAGS
@@ -11,7 +11,7 @@ FLAGS = flags.FLAGS
 ########################################################################################################################
 """ 전역변수 설정 """
 ########################################################################################################################
-data = stroke
+data = skin_lesion
 
 ########################################################################################################################
 def main(*argv, **kwargs):

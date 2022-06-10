@@ -1,5 +1,4 @@
 __all__ = [
-    'decoder',
     'encoder',
     'latent',
     'skip_connection',

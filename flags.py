@@ -25,7 +25,7 @@ flags.DEFINE_string('saved_model_name', 'SavedModel', 'Saved model folder Name')
 ########################################################################################################################
 """ Training settings """
 ########################################################################################################################
-flags.DEFINE_boolean('train', False, '모델 학습을 위한 모드')
+flags.DEFINE_boolean('train', True, '모델 학습을 위한 모드')
 flags.DEFINE_boolean('save', True, 'wether save the model after training')
 flags.DEFINE_boolean('plot', False, 'wether plot prediction of the model.')
 flags.DEFINE_integer("epoch", 0, "")
@@ -39,6 +39,7 @@ flags.DEFINE_string('ckpt_file_name', ckpt_file_name, 'checkpoint file name')
 """ Dataset Setting """
 ########################################################################################################################
 flags.DEFINE_integer("bsz", 4, "Batch size")
+flags.DEFINE_integer("repeat", 3, "Batch size")
 
 ########################################################################################################################
 """ Directory """
