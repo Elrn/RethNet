@@ -11,7 +11,6 @@ seg_dir = join(base_dir, 'grayscale', '*.png')
 
 data_paths = glob(data_dir)
 seg_paths = glob(seg_dir)
-
 img_size = [480, 320]
 input_shape = [*img_size, 3]
 seg_shape = [*img_size, 5]
@@ -54,14 +53,13 @@ def parse_fn(x, y):
     tf.ensure_shape(y, seg_shape)
     return x, y
 
-def build(batch_size, validation_split=0.1):
-    assert 0 <= validation_split <= 0.5
+def build(batch_size, validation_split=None):
     assert len(data_paths) == len(seg_paths)
+    if validation_split != None:
+        assert 0 <= validation_split <= 0.5
+        val_count = int(len(data_paths) * validation_split)
+        buffer_size = (len(data_paths) - val_count) * FLAGS.repeat
 
-    val_count = int(len(data_paths) * validation_split)
-    buffer_size = (len(data_paths) - val_count) * FLAGS.repeat
-
-    if validation_split != None and validation_split > 0.:
         paths_set = (data_paths[val_count:], seg_paths[val_count:])
         dataset = load(paths_set, batch_size, buffer_size)
 
@@ -69,8 +67,8 @@ def build(batch_size, validation_split=0.1):
         val_dataset = load(paths_set, batch_size)
         return dataset, val_dataset
     else:
-        dataset = load((data_paths[:10], seg_paths[:10]), batch_size)
-        return dataset, None
+        dataset = load((data_paths, seg_paths), batch_size)
+        return dataset
 
 def load(paths, batch_size, buffer_size=None, drop=True):
     dataset = tf.data.Dataset.from_tensor_slices(
@@ -81,8 +79,8 @@ def load(paths, batch_size, buffer_size=None, drop=True):
     #     lambda x : tf.data.Dataset(x).map(parse_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE),
     #     cycle_length = tf.data.experimental.AUTOTUNE,
     #     num_parallel_calls = tf.data.experimental.AUTOTUNE
-    ).repeat(
-        count=FLAGS.repeat
+    # ).repeat(
+    #     count=FLAGS.repeat
     # ).cache(
     ).map(
         map_func=parse_fn,
