@@ -20,7 +20,7 @@ def main(*argv, **kwargs):
 
     ### Get Data
     _dataset = kwargs['_dataset']
-    dataset, val_dataset = _dataset.build(batch_size=FLAGS.bsz, validation_split=0.2) # [0]:train [1]:valid or None
+    dataset, val_dataset = _dataset.build(FLAGS.bsz, FLAGS.valid_split)
     num_class, input_shape = _dataset.num_class, _dataset.input_shape
 
     ### Build model
@@ -61,8 +61,7 @@ def main(*argv, **kwargs):
         # callbacks.setLR(0.0001),
     ]
     if FLAGS.plot:
-        adc_dataset, dwi_dataset = _dataset.build_test(FLAGS.bsz)
-        _callbacks.append(callbacks.monitor(FLAGS.plot_dir, dataset=adc_dataset))
+        _callbacks.append(callbacks.monitor(FLAGS.plot_dir, dataset=val_dataset.take(1)))
 
     ### Train model
     history = model.fit(
