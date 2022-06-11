@@ -26,6 +26,108 @@ import numpy as np
 ########################################################################################################################
 EPSILON = tf.keras.backend.epsilon()
 NEW = tf.newaxis
+
+########################################################################################################################
+class Patch(Layer):
+    def __init__(self, patch_size, strides, rate=1, padding='VALID'):
+        self.patch_size = patch_size
+        self.strides = strides
+        self.rate = rate
+        self.padding = padding.upper() if padding.upper() in {'VALID', 'SAME'} else None
+
+    def build(self, input_shape):
+        rank = len(input_shape)-2
+        self.patch_size = [1, *self.normalize_tuple(self.patch_size, rank, 'patch_size'), 1]
+        self.strides = [1, *self.normalize_tuple(self.strides, rank, 'strides'), 1]
+        self.rate = [1, *self.normalize_tuple(self.rate, rank, 'rate'), 1]
+        self.patch_size = self.normalize_tuple(self.patch_size, rank, 'patch_size')
+
+        self.args = [self.patch_size, self.strides, self.patch_size]
+        if rank == 2: self.args.insert(-2, self.rate)
+
+        self.extract_fn = tf.image.extract_patches if rank == 2 else tf.extract_volume_patches
+
+    @staticmethod
+    def normalize_tuple(value, rank, name):
+        if isinstance(value, int):
+            return (value,) * rank
+        else:
+            try:
+                value_tuple = tuple(value)
+            except TypeError:
+                raise ValueError('The `' + name + '` argument must be a tuple of ' +
+                                 str(rank) + ' integers. Received: ' + str(value))
+            if len(value_tuple) != rank:
+                raise ValueError('The `' + name + '` argument must be a tuple of ' +
+                                 str(rank) + ' integers. Received: ' + str(value))
+            for single_value in value_tuple:
+                try:
+                    int(single_value)
+                except (ValueError, TypeError):
+                    raise ValueError('The `' + name + '` argument must be a tuple of ' +
+                                     str(rank) + ' integers. Received: ' + str(value) + ' '
+                                                                                     'including element ' + str(
+                        single_value) + ' of type' +
+                                     ' ' + str(type(single_value)))
+            return value_tuple
+
+    def extract_patches(self, x):
+        return self.extract_fn(images=x, *self.args)
+
+    @staticmethod
+    def sort_patches(x, C):
+        # Need to sort by channel since tf.extract_patches give channel mixed output
+        _, x_psz, y_psz, pcp = x.shape
+        x = tf.reshape(x, [-1, x_psz, y_psz, pcp//C, C])
+        x = tf.transpose(x, [0, 1, 2, 4, 3])
+        x = tf.reshape(x, [-1, x_psz, y_psz, pcp])
+        return x
+
+    @staticmethod
+    def unsort_patches(x, C):
+        _, x_psz, y_psz, ppc = x.shape
+        x = tf.reshape(x, [-1, x_psz, y_psz, C, ppc//C])
+        x = tf.transpose(x, [0, 4, 1, 2, 3])
+        x = tf.transpose(x, [0, 2, 3, 1, 4]) # [_, nP_x, nP_y, C * x_psz * y_psz]
+        x = tf.reshape(x, [-1, x_psz, y_psz, ppc])
+        return x
+
+
+    def reconstruct(self, x):
+        """
+        inputs:
+            x: extracted patches that rank must be 4
+
+        return:
+            reconstructed image
+        """
+        assert len(x.shape) == 4
+
+        x = tf.transpose(x, [0,1,3,2])
+        b, h, c, w = x.shape
+        shape = [-1, h*self.patch_size[1], c//self.patch_size[2], w]
+        x = tf.reshape(x, shape)
+
+        x = tf.transpose(x, [0,1,3,2])
+        b, h, w, c = x.shape
+        shape = [-1, h, w*self.patch_size[1], c//self.patch_size[2]]
+        x = tf.reshape(x, shape)
+
+        return x
+
+    def call(self, x, **kargs):
+        return x
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "patch_size": self.patch_size,
+            "strides": self.strides,
+            "rate": self.rate,
+            "padding": self.padding
+        })
+        return config
+
 ########################################################################################################################
 def resize(scale):
     dtype = tf.float32 if type(scale) == float else tf.int32
