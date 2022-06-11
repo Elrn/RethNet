@@ -60,21 +60,23 @@ def main(*argv, **kwargs):
         # ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, verbose=0, min_delta=0.0001, cooldown=0, min_lr=0),
         # callbacks.setLR(0.0001),
     ]
-    if FLAGS.plot:
+    if FLAGS.plot: # validation dataset 을 생성해야 한다.
         _callbacks.append(callbacks.monitor(FLAGS.plot_dir, dataset=val_dataset.take(1)))
 
+    fit_args = {
+        'x': dataset,
+        'epochs': FLAGS.epoch,
+        'initial_epoch': initial_epoch,
+        'callbacks': _callbacks
+    }
+    if FLAGS.valid_split != None or FLAGS.valid_split != 0:
+        fit_args['validation_data'] = val_dataset,
+
     ### Train model
-    history = model.fit(
-        x=dataset,
-        epochs=FLAGS.epoch,
-        validation_data=val_dataset,
-        initial_epoch=initial_epoch,
-        callbacks=_callbacks,
-    )
+    history = model.fit(**fit_args)
     if FLAGS.save == True:
         save_path = join(FLAGS.ckpt_dir, FLAGS.saved_model_name)
         model.save(save_path)
-    # date = datetime.datetime.today().strftime('%Y-%m-%d_%Hh%Mm%Ss')
     # utils.save_history(history, utils.join_dir([base_dir, 'log', date]))
 
 if __name__ == '__main__':
