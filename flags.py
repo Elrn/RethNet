@@ -28,7 +28,7 @@ flags.DEFINE_string('saved_model_name', 'SavedModel', 'Saved model folder Name')
 flags.DEFINE_boolean('train', True, '모델 학습을 위한 모드')
 flags.DEFINE_boolean('save', True, 'wether save the model after training')
 flags.DEFINE_boolean('plot', False, 'wether plot prediction of the model.')
-flags.DEFINE_integer("epoch", 0, "")
+flags.DEFINE_integer("epoch", 100, "")
 
 ckpt_file_name = 'EP_{epoch}, L_{loss:.3f}, P_{Precision:.3f}, R_{Recall:.3f}, J_{JSC:.3f}, ' \
                  'vL_{val_loss:.3f}, vP_{val_Precision:.3f}, vR_{val_Recall:.3f}, vJ_{val_JSC:.3f}'\

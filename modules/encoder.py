@@ -60,11 +60,10 @@ def REthinker(filters, patch_size=None):
             return main
 
         def main(x):
-            _, x_nP, y_nP, n_ch, psz = x.shape
-            # input.shape = [-1, xpsz, ypsz, c, ppc//c]
+            _, psz, x_nP, y_nP, n_ch= x.shape
             x = tf.transpose(x, [0, 2, 3, 1, 4]) # [_, nP_x, nP_y, x_psz * y_psz, C]
             x = tf.reshape(x, [-1, x_nP, y_nP, n_ch*psz])
-            x = reconstruction(psz)(x)
+            x = reconstruction(patch_size)(x)
             return x
         return main
 
@@ -114,17 +113,18 @@ def Xception(filters):
         x = BatchNormalization()(x)
         x = tf.nn.relu(x)
         x = Dense(filters)(x)
-        x = modules.conv(filters, kernel=3, padding='same', groups=filters)(x)
+        x = modules.conv(filters, 3, padding='same', groups=filters)(x)
         return x
     return main
 
-def base(filters, pool=2):
+def base(filters, patch_size, pool=2):
     def main(x):
         x = Xception(filters)(x)
-        x = REthinker(filters)(x)
+        x = REthinker(filters, patch_size)(x)
+        skip = x
         if pool != None:
             x = modules.pooling(pool, pool)(x)
-        return x
+        return x, skip
     return main
 
 def ASPP(filters, div=4, kernel=3):
@@ -132,19 +132,29 @@ def ASPP(filters, div=4, kernel=3):
     div_channel = filters // div
     attn = layers.sep_bias(div)
 
-    def main(x, skip):
+    def main(x):
         x = BatchNormalization()(x)
         x = tf.nn.relu(x)
         features = [modules.conv(div_channel, 1)(attn(x, i))
                     for i in range(div)]
         for feature in features:
-            x = modules.conv(div_channel, kernel, strides=2,
+            x = modules.conv(div_channel, kernel,
                                       padding='same')(feature)
             for j in range(1, 4):
                 x += modules.conv(div_channel, kernel, dilation_rate=j,
                                   padding='same', groups=div_channel)(x)
             concat_list.append(x)
-        concat_list.append(skip)
         x = tf.concat(concat_list, -1)
+        return x
+    return main
+
+def Double_Convolution(filters, pool=2):
+    def main(x):
+        x = BatchNormalization()(x)
+        x = tf.nn.relu(x)
+        x = Conv2D(filters, 3, padding='same')(x)
+        x = Conv2D(filters, 3, padding='same')(x)
+        if pool != None:
+            x = modules.pooling(pool, pool)(x)
         return x
     return main

@@ -12,10 +12,10 @@ seg_dir = join(base_dir, 'grayscale', '*.png')
 data_paths = glob(data_dir)
 seg_paths = glob(seg_dir)
 
-img_size = [960, 640]
+img_size = [480, 320]
 input_shape = [*img_size, 3]
 seg_shape = [*img_size, 5]
-num_classes = 5
+num_class = 5
 
 """
 0:"background",
@@ -50,7 +50,7 @@ def parse_fn(x, y):
     y = read_img(y, 1)
     y = tf.squeeze(y, -1)
     y = tf.cast(y, tf.int32)
-    y = tf.one_hot(y, num_classes, axis=-1)
+    y = tf.one_hot(y, num_class, axis=-1)
     tf.ensure_shape(y, seg_shape)
     return x, y
 
@@ -72,7 +72,7 @@ def build(batch_size, validation_split=0.1):
         dataset = load((data_paths[:10], seg_paths[:10]), batch_size)
         return dataset, None
 
-def load(paths, batch_size, buffer_size, drop=True):
+def load(paths, batch_size, buffer_size=None, drop=True):
     dataset = tf.data.Dataset.from_tensor_slices(
         paths
     ).prefetch(
@@ -90,10 +90,12 @@ def load(paths, batch_size, buffer_size, drop=True):
     ).batch(
         batch_size=batch_size,
         drop_remainder=drop,
-    ).shuffle(
-        buffer_size,
-        reshuffle_each_iteration=True
     )
+    if buffer_size != None:
+        dataset.shuffle(
+            buffer_size,
+            reshuffle_each_iteration=True
+        )
     return dataset
 
 #######################################################################################################################
