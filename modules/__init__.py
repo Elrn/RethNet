@@ -1,7 +1,6 @@
 __all__ = [
     'encoder',
     'latent',
-    'skip_connection',
 ]
 
 from tensorflow.keras.layers import *
