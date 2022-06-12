@@ -1,8 +1,13 @@
 # RethNet
 
+
+
+**[`Paper`](https://arxiv.org/abs/2101.02127)** :
 Object-by-Object Learning for Detecting Facial Skin Problems
 
-`tmp`
+---
+
+
 
 ```
 ConvLSTM 적용 시, Patch Pixels 를 Time series 로 활용하나?
@@ -24,5 +29,3 @@ spatial correlation을 추출함을 명시함
 
 ```
 
-* **[`tmp`](https://127.0.0.1)**:
-    tmp
