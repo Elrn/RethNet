@@ -15,12 +15,11 @@ def base(n_class, base_filters=64, ):
 
     def main(x):
         x = layers.resize(0.5)(x)
-        # Double Conv
         x = encoder.Double_Convolution(filters[0])(x)
         # encoding
         for i in range(2):
             x, x_ = encoder.base(filters[i], patch_size=N[i])(x)
-            skip = Conv2D(48, 1, padding='same')(x_) if i == 0 else skip
+            skip = modules.conv(48, 1, padding='same')(x_) if i == 0 else skip
         # latent
         for i in range(3):
             x, _ = encoder.base(filters[2], patch_size=N[2], pool=None)(x)

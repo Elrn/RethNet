@@ -15,6 +15,7 @@ img_size = [480, 320]
 input_shape = [*img_size, 3]
 seg_shape = [*img_size, 5]
 num_class = 5
+rank = 2
 
 """
 0:"background",
