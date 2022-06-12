@@ -92,7 +92,7 @@ class Patch(Layer):
         x = tf.reshape(x, [-1, x_psz, y_psz, ppc])
         return x
 
-
+    @classmethod
     def reconstruct(self, x):
         """
         inputs:
