@@ -31,8 +31,8 @@ class _BASE(tf.keras.metrics.Metric):
     def process_confusion_matrix(self):
         self.TN = self.CM[0][0]
         self.TP = tf.reduce_sum(tf.linalg.diag_part(self.CM)[1:])
-        self.FP = tf.reduce_sum(self.CM[0][1:])
-        self.FN = tf.reduce_sum(tf.linalg.set_diag(self.CM, np.zeros([self.num_classes]))[1:])
+        self.FP = tf.reduce_sum(tf.linalg.set_diag(self.CM, np.zeros([self.num_classes]))[:, 1:])
+        self.FN = tf.reduce_sum(tf.linalg.set_diag(self.CM, np.zeros([self.num_classes]))[1:, :1])
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_true = tf.cast(y_true, self._dtype) # None 일 경우 float 할당
