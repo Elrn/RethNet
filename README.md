@@ -1,11 +1,8 @@
 # RethNet
 
 
+[![arXiv](https://img.shields.io/badge/arXiv-2101.02127v2-b31b1b.svg?style=flat-square)](https://arxiv.org/abs/2101.02127v2)
 
-**[`Paper`](https://arxiv.org/abs/2101.02127)** :
-Object-by-Object Learning for Detecting Facial Skin Problems
-
----
 
 
 
