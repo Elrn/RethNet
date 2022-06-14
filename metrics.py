@@ -33,6 +33,7 @@ class _BASE(tf.keras.metrics.Metric):
         self.TP = tf.reduce_sum(tf.linalg.diag_part(self.CM)[1:])
         self.FP = tf.reduce_sum(tf.linalg.set_diag(self.CM, np.zeros([self.num_classes]))[:, 1:])
         self.FN = tf.reduce_sum(tf.linalg.set_diag(self.CM, np.zeros([self.num_classes]))[1:, :1])
+        assert tf.reduce_sum(self.CM) == self.TN + self.TP + self.FP + self.FN
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_true = tf.cast(y_true, self._dtype) # None 일 경우 float 할당
@@ -178,10 +179,6 @@ class surface_distance(tf.keras.metrics.Metric):
     def __init__(self, num_classes, name=None, dtype=None, **kwargs):
         super(surface_distance, self).__init__(name=name, dtype=dtype, **kwargs)
         self.num_classes = num_classes
-        self.CM = self.add_weight(
-            'confusion_matrix',
-            shape=(num_classes, num_classes),
-            initializer=tf.compat.v1.zeros_initializer)
 
     def get_contour(self, x, connectivity=1):
         conn = ndimage.generate_binary_structure(x.ndim, connectivity)
