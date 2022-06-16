@@ -54,9 +54,9 @@ class monitor(tf.keras.callbacks.Callback):
         inputs = tf.squeeze(inputs)
         labels = tf.squeeze(tf.argmax(labels, -1))
         preds = tf.squeeze(tf.argmax(preds, -1))
-        inputs = tf.reshape(inputs, [-1, *inputs.shape[2:]])
-        labels = tf.reshape(labels, [-1, *labels.shape[2:]])
-        preds = tf.reshape(preds, [-1, *preds.shape[2:]])
+        inputs = tf.reshape(inputs, [-1, *inputs.shape[-3:]])
+        labels = tf.reshape(labels, [-1, *labels.shape[-2:]])
+        preds = tf.reshape(preds, [-1, *preds.shape[-2:]])
 
         for c in range(cols):
             for r in range(rows):
