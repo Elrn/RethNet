@@ -192,7 +192,6 @@ def tmp(x, filters, kernel=3, pool=2):
         x = BatchNormalization()(x)
         x = Activation('relu')(x)
         x = Conv2D(filters, kernel, padding='same')(x)
-        x = sep_bias(1)(x)
         x = BatchNormalization()(x)
         x_ = Activation('relu')(x)
         tmp = Dense(filters)(x_)
@@ -200,7 +199,6 @@ def tmp(x, filters, kernel=3, pool=2):
         x = x_ * prob
         x = DepthwiseConv2D(kernel, padding='same')(x)
         x = DepthwiseConv2D(kernel, padding='same')(x)
-        x = sep_bias(1)(x)
         x += x_
         return x
 

@@ -68,7 +68,7 @@ def main(*argv, **kwargs):
         'initial_epoch': initial_epoch,
         'callbacks': _callbacks
     }
-    if FLAGS.valid_split != None or FLAGS.valid_split != 0:
+    if FLAGS.valid_split != None and FLAGS.valid_split != 0:
         fit_args['validation_data'] = val_dataset,
 
     ### Train model

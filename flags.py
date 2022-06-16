@@ -38,7 +38,7 @@ flags.DEFINE_string('ckpt_file_name', ckpt_file_name, 'checkpoint file name')
 ########################################################################################################################
 """ Dataset Setting """
 ########################################################################################################################
-flags.DEFINE_integer("bsz", 7, "Batch size")
+flags.DEFINE_integer("bsz", 38, "Batch size")
 flags.DEFINE_integer("repeat", 1, "Batch size")
 flags.DEFINE_float("valid_split", 0.1, "Batch size")
 
