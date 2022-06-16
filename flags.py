@@ -27,7 +27,7 @@ flags.DEFINE_string('saved_model_name', 'SavedModel', 'Saved model folder Name')
 ########################################################################################################################
 flags.DEFINE_boolean('train', True, '모델 학습을 위한 모드')
 flags.DEFINE_boolean('save', True, 'wether save the model after training')
-flags.DEFINE_boolean('plot', False, 'wether plot prediction of the model.')
+flags.DEFINE_boolean('plot', True, 'wether plot prediction of the model.')
 flags.DEFINE_integer("epoch", 100, "")
 
 ckpt_file_name = 'EP_{epoch}, L_{loss:.3f}, P_{Precision:.3f}, R_{Recall:.3f}, J_{JSC:.3f}, ' \
@@ -38,9 +38,9 @@ flags.DEFINE_string('ckpt_file_name', ckpt_file_name, 'checkpoint file name')
 ########################################################################################################################
 """ Dataset Setting """
 ########################################################################################################################
-flags.DEFINE_integer("bsz", 4, "Batch size")
-flags.DEFINE_integer("repeat", 1, "")
-flags.DEFINE_float("valid_split", 0.1, "")
+flags.DEFINE_integer("bsz", 7, "Batch size")
+flags.DEFINE_integer("repeat", 1, "Batch size")
+flags.DEFINE_float("valid_split", 0.1, "Batch size")
 
 ########################################################################################################################
 """ Directory """

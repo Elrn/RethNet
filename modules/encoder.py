@@ -67,7 +67,7 @@ def REthinker(filters, patch_size=None):
             return x
         return main
 
-    def encoding(x, mode=1):
+    def encoding(x, mode=0):
         """
         Conv3D / ConvLSTM
 
@@ -75,15 +75,43 @@ def REthinker(filters, patch_size=None):
         extract patches 의 output은 channel이 섞인 patch가 channel axis로 출력된다.
         따라서 ConvLSTM의 input에 맞도록 변환해주어야 한다.
 
+        input:
+            [B, psz*psz, n_patch, n_patch, channel]
+
+        output:
+            [B, psz*psz, n_patch, n_patch, channel]
         """
+
+        def self_attention(x):
+            x = LayerNormalization()(x)
+            Q, K, V = [Dense(dim)(x) for _ in range(3)]
+            score = tf.matmul(Q, K, transpose_b=True)  # B, psz, psz, I, I
+            dims = tf.cast(K.shape[-1], tf.float32)  # emb_dims
+            scaled_score = score / tf.math.sqrt(dims) + EPSILON
+            weights = tf.nn.softmax(scaled_score, axis=-1)
+            # weights = Dropout(drop_rate)(weights)
+            output = tf.matmul(weights, V)  # B, psz, psz, I, ch
+            return output
+
         if mode == 0:
             x = Conv3D(filters, kernel=3, padding='same',
                        # activation='tanh'
                        )(x)
             x = BatchNormalization()(x)
             x = tf.math.tanh(x)
-        else:
+
+        elif mode == 1:
             x = ConvLSTM2D(filters, 1, return_sequences=True)(x) # activation='tanh'
+
+        elif mode == 2:
+            # x = tf.transpose(x, [0, 2, 3, 1, 4]) # [B, n_patch, n_patch, psz*psz, channel]
+            _, psz2, xnp, ynp, ch = x.shpae
+            x_ = tf.reshape(x, [-1, psz2, xnp*ynp, ch])
+            x_ = tf.reduce_mean(x_, 1)
+            x_ = self_attention(x_)
+            x *= x_
+        else:
+            raise ValueError(f'input mode: {mode}, is not supported.')
         return x
 
     def main(x):
@@ -92,7 +120,6 @@ def REthinker(filters, patch_size=None):
 
         x = BatchNormalization()(x)
         x = tf.nn.relu(x)
-
         skip = layers.SE(0.125)(x)
         x = tf.image.extract_patches(
             images=x,
@@ -158,3 +185,27 @@ def Double_Convolution(filters, pool=2):
             x = modules.pooling(pool, pool)(x)
         return x
     return main
+
+########################################################################################################################
+def tmp(x, filters, kernel=3, pool=2):
+    def module(x):
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+        x = Conv2D(filters, kernel, padding='same')(x)
+        x = sep_bias(1)(x)
+        x = BatchNormalization()(x)
+        x_ = Activation('relu')(x)
+        tmp = Dense(filters)(x_)
+        prob = tf.nn.softmax(x)
+        x = x_ * prob
+        x = DepthwiseConv2D(kernel, padding='same')(x)
+        x = DepthwiseConv2D(kernel, padding='same')(x)
+        x = sep_bias(1)(x)
+        x += x_
+        return x
+
+    x = module(x)
+    x = module(x)
+    if pool:
+        x = MaxPool2D(pool, pool)(x)
+    return x

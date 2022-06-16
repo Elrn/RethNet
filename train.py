@@ -15,26 +15,24 @@ def main(*argv, **kwargs):
     if argv[0] == __file__:
         utils.tf_init()
 
-    ### ckpt
-    ckpt_file_path = join(FLAGS.ckpt_dir, FLAGS.ckpt_file_name)
-
     ### Get Data
     _dataset = kwargs['_dataset']
     dataset, val_dataset = _dataset.build(FLAGS.bsz, FLAGS.valid_split)
     num_class, input_shape = _dataset.num_class, _dataset.input_shape
+    target_label = _dataset.target_label
 
     ### Build model
     input = tf.keras.layers.Input(shape=input_shape)
-    output = models.base(num_class)(input)
+    output = models.FCN(num_class)(input)
     model = tf.keras.Model(input, output, name=None)
 
     ### Compile model
     metric_list = [
-        metrics.Precision(num_class),
-        metrics.Recall(num_class),
-        metrics.F_Score(num_class),
-        metrics.DSC(num_class),
-        metrics.JSC(num_class),
+        metrics.Precision(num_class, target_label),
+        metrics.Recall(num_class, target_label),
+        metrics.F_Score(num_class, target_label),
+        metrics.DSC(num_class, target_label),
+        metrics.JSC(num_class, target_label),
     ]
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
                   loss=losses.WCE(),
@@ -42,6 +40,7 @@ def main(*argv, **kwargs):
                   )
 
     ### load weights
+    ckpt_file_path = join(FLAGS.ckpt_dir, FLAGS.ckpt_file_name)
     filepath_to_load = callbacks.load_weights._get_most_recently_modified_file_matching_pattern(ckpt_file_path)
     if (filepath_to_load is not None and callbacks.load_weights.checkpoint_exists(filepath_to_load)):
         initial_epoch = int(re.findall(r"EP_(\d+),", filepath_to_load)[0])
@@ -55,13 +54,13 @@ def main(*argv, **kwargs):
         initial_epoch = 0
 
     _callbacks=[
-        ModelCheckpoint(ckpt_file_path, monitor='loss', save_best_only=True, save_weights_only=False, save_freq='epoch'),
+        ModelCheckpoint(ckpt_file_path, monitor='loss', save_best_only=False, save_weights_only=False, save_freq='epoch'),
         # EarlyStopping(monitor='loss', min_delta=0, patience=5),
         # ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, verbose=0, min_delta=0.0001, cooldown=0, min_lr=0),
         # callbacks.setLR(0.0001),
     ]
     if FLAGS.plot: # validation dataset 을 생성해야 한다.
-        _callbacks.append(callbacks.monitor(FLAGS.plot_dir, dataset=val_dataset.take(1)))
+        _callbacks.append(callbacks.monitor(FLAGS.plot_dir, dataset=val_dataset))
 
     fit_args = {
         'x': dataset,

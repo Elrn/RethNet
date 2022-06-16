@@ -3,7 +3,7 @@ from tensorflow.keras.layers import *
 import tensorflow.python.keras.layers.pooling
 from tensorflow.keras.constraints import *
 from tensorflow.keras.initializers import *
-from keras.layers.convolutional.base_depthwise_conv import DepthwiseConv
+# from keras.layers.convolutional.base_depthwise_conv import DepthwiseConv
 
 import operator
 from tensorflow.python.keras.utils import conv_utils
@@ -17,7 +17,7 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import nn
 from tensorflow.python.ops import nn_ops
 from tensorflow.python.keras.layers.pooling import Pooling2D
-from keras.layers.convolutional.base_conv import Conv
+# from keras.layers.convolutional.base_conv import Conv
 from keras.utils import tf_utils
 
 import functools
@@ -254,86 +254,86 @@ class SaBN(Layer):
         return config
 
 ########################################################################################################################
-class DepthwiseConv3D(DepthwiseConv):
-    def __init__(self,
-                 kernel_size,
-                 strides=(1, 1, 1),
-                 padding='same',
-                 depth_multiplier=1,
-                 data_format=None,
-                 dilation_rate=(1, 1, 1),
-                 activation=None,
-                 use_bias=True,
-                 depthwise_initializer='glorot_uniform',
-                 bias_initializer='zeros',
-                 depthwise_regularizer=None,
-                 bias_regularizer=None,
-                 activity_regularizer=None,
-                 depthwise_constraint=None,
-                 bias_constraint=None,
-                 **kwargs):
-        super(DepthwiseConv3D, self).__init__(
-            3,
-            kernel_size=kernel_size,
-            strides=strides,
-            padding=padding,
-            depth_multiplier=depth_multiplier,
-            data_format=data_format,
-            dilation_rate=dilation_rate,
-            activation=activation,
-            use_bias=use_bias,
-            depthwise_initializer=depthwise_initializer,
-            bias_initializer=bias_initializer,
-            depthwise_regularizer=depthwise_regularizer,
-            bias_regularizer=bias_regularizer,
-            activity_regularizer=activity_regularizer,
-            depthwise_constraint=depthwise_constraint,
-            bias_constraint=bias_constraint,
-            **kwargs)
-
-    def call(self, inputs):
-        outputs = backend.conv3d(
-            inputs,
-            self.depthwise_kernel,
-            strides=self.strides,
-            padding=self.padding,
-            dilation_rate=self.dilation_rate,
-            data_format=self.data_format)
-
-        if self.use_bias:
-            outputs = backend.bias_add(
-                outputs,
-                self.bias,
-                data_format=self.data_format)
-
-        if self.activation is not None:
-            return self.activation(outputs)
-
-        return outputs
-
-    @tf_utils.shape_type_conversion
-    def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            rows = input_shape[2]
-            cols = input_shape[3]
-            out_filters = input_shape[1] * self.depth_multiplier
-        elif self.data_format == 'channels_last':
-            rows = input_shape[1]
-            cols = input_shape[2]
-            out_filters = input_shape[3] * self.depth_multiplier
-
-        rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
-                                             self.padding,
-                                             self.strides[0],
-                                             self.dilation_rate[0])
-        cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
-                                             self.padding,
-                                             self.strides[1],
-                                             self.dilation_rate[1])
-        if self.data_format == 'channels_first':
-            return (input_shape[0], out_filters, rows, cols)
-        elif self.data_format == 'channels_last':
-            return (input_shape[0], rows, cols, out_filters)
+# class DepthwiseConv3D(DepthwiseConv):
+#     def __init__(self,
+#                  kernel_size,
+#                  strides=(1, 1, 1),
+#                  padding='same',
+#                  depth_multiplier=1,
+#                  data_format=None,
+#                  dilation_rate=(1, 1, 1),
+#                  activation=None,
+#                  use_bias=True,
+#                  depthwise_initializer='glorot_uniform',
+#                  bias_initializer='zeros',
+#                  depthwise_regularizer=None,
+#                  bias_regularizer=None,
+#                  activity_regularizer=None,
+#                  depthwise_constraint=None,
+#                  bias_constraint=None,
+#                  **kwargs):
+#         super(DepthwiseConv3D, self).__init__(
+#             3,
+#             kernel_size=kernel_size,
+#             strides=strides,
+#             padding=padding,
+#             depth_multiplier=depth_multiplier,
+#             data_format=data_format,
+#             dilation_rate=dilation_rate,
+#             activation=activation,
+#             use_bias=use_bias,
+#             depthwise_initializer=depthwise_initializer,
+#             bias_initializer=bias_initializer,
+#             depthwise_regularizer=depthwise_regularizer,
+#             bias_regularizer=bias_regularizer,
+#             activity_regularizer=activity_regularizer,
+#             depthwise_constraint=depthwise_constraint,
+#             bias_constraint=bias_constraint,
+#             **kwargs)
+#
+#     def call(self, inputs):
+#         outputs = backend.conv3d(
+#             inputs,
+#             self.depthwise_kernel,
+#             strides=self.strides,
+#             padding=self.padding,
+#             dilation_rate=self.dilation_rate,
+#             data_format=self.data_format)
+#
+#         if self.use_bias:
+#             outputs = backend.bias_add(
+#                 outputs,
+#                 self.bias,
+#                 data_format=self.data_format)
+#
+#         if self.activation is not None:
+#             return self.activation(outputs)
+#
+#         return outputs
+#
+#     @tf_utils.shape_type_conversion
+#     def compute_output_shape(self, input_shape):
+#         if self.data_format == 'channels_first':
+#             rows = input_shape[2]
+#             cols = input_shape[3]
+#             out_filters = input_shape[1] * self.depth_multiplier
+#         elif self.data_format == 'channels_last':
+#             rows = input_shape[1]
+#             cols = input_shape[2]
+#             out_filters = input_shape[3] * self.depth_multiplier
+#
+#         rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
+#                                              self.padding,
+#                                              self.strides[0],
+#                                              self.dilation_rate[0])
+#         cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
+#                                              self.padding,
+#                                              self.strides[1],
+#                                              self.dilation_rate[1])
+#         if self.data_format == 'channels_first':
+#             return (input_shape[0], out_filters, rows, cols)
+#         elif self.data_format == 'channels_last':
+#             return (input_shape[0], rows, cols, out_filters)
 
 ########################################################################################################################
 class global_attention(Layer):

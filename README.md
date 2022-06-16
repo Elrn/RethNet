@@ -3,9 +3,6 @@
 
 [![arXiv](https://img.shields.io/badge/arXiv-2101.02127v2-b31b1b.svg?style=flat-square)](https://arxiv.org/abs/2101.02127v2)
 
-
-
-
 ```
 ConvLSTM 적용 시, Patch Pixels 를 Time series 로 활용하나?
 맞다면, 그로써 얻어지는 이점은 무엇인가?
@@ -25,4 +22,11 @@ spatial correlation을 추출함을 명시함
 
 
 ```
+
+
+
+- [ ] 
+- [ ] Memory efficient Self-Attention 으로 교체
+
+
 

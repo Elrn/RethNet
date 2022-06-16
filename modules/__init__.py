@@ -1,6 +1,5 @@
 __all__ = [
     'encoder',
-    'latent',
 ]
 
 from tensorflow.keras.layers import *

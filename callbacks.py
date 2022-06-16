@@ -15,130 +15,66 @@ FLAGS = flags.FLAGS
 
 ########################################################################################################################
 class monitor(tf.keras.callbacks.Callback):
-    def __init__(self, save_dir, dataset=None, fig_size_rate=3):
+    def __init__(self, save_dir, dataset=None, num_show=30, fig_size_rate=3):
         super(monitor, self).__init__()
         self.save_dir = save_dir
-        self.dataset = dataset
+        self.dataset = dataset.take(num_show // FLAGS.bsz + 1)
+        self.num_show = num_show
         self.fig_size_rate = fig_size_rate
     #
     def on_epoch_end(self, epoch, logs=None):
-        self.plot_single_modality(epoch, logs)
-
-    def plot_SaBN(self, epoch, logs=None):
-        epoch += 1
-        cols, rows = 4, FLAGS.bsz
-        figure, axs = plt.subplots(cols, rows, figsize=(rows * 3, cols * 3))
-        # figure.suptitle(f'Epoch: "{epoch}"', fontsize=10)
-        figure.tight_layout()
-
-        data_stack = []
-        pred_stack = []
-        seg_stack = []
-        for data, seg in self.dataset.take(cols//2):
-            pred = self.model(data)
-            data_stack.append(data[0])
-            pred_stack.append(pred)
-            seg_stack.append(seg)
-
-        data = np.concatenate(data_stack, 0)
-        pred = np.concatenate(pred_stack, 0)
-        seg = np.concatenate(seg_stack, 0)
-
-        data = np.squeeze(data)
-        pred = np.squeeze(np.argmax(pred, -1, keepdims=True))
-        seg = np.squeeze(np.argmax(seg, -1, keepdims=True))
-
-        for c in range(cols):
-            for r in range(rows):
-                idx = r + r * c//2
-                axs[c][r].set_xticks([])
-                axs[c][r].set_yticks([])
-                axs[c][r].imshow(data[idx], cmap='gray')
-                if c % 2:
-                    axs[c][r].imshow(pred[idx], cmap='Greens', alpha=0.5)
-                else:
-                    axs[c][r].imshow(seg[idx], cmap='Reds', alpha=0.5)
-
-        save_path = os.path.join(self.save_dir, f'{epoch}.png')
-        # if os.path.exists(save_path) == True:
-        #     save_path = save_path + ' (1)'
-        plt.savefig(save_path, dpi=200)
-        plt.close('all')
-
-    def plot_single_modality(self, epoch, logs=None):
-        epoch += 1
-        cols, rows = 2, FLAGS.bsz
-        figure, axs = plt.subplots(cols, rows, figsize=(rows * 3, cols * 3))
-        # figure.suptitle(f'Epoch: "{epoch}"', fontsize=10)
-        figure.tight_layout()
-
-        stack = []
-        stack_seg = []
-        for data, seg in self.dataset.skip(4).take(1):
-            pred = self.model(data)
-            stack.append(pred)
-            stack_seg.append(seg)
-
-        # data = np.concatenate(stack, 0)
-        # seg = np.concatenate(stack_seg, 0)
-        data, seg, pred = np.squeeze(data), np.squeeze(tf.argmax(seg, -1)), np.squeeze(tf.argmax(pred, -1))
-
-        for c in range(cols):
-            for r in range(rows):
-                axs[c][r].set_xticks([])
-                axs[c][r].set_yticks([])
-                if c == 0:
-                    axs[c][r].imshow(data[r], cmap='gray')
-                    axs[c][r].imshow(pred[r], cmap='Greens', alpha=0.5)
-                    # axs[c][r].imshow(data[11 + 1*r], cmap='gray')
-                    # axs[c][r].imshow(pred[11 + 1*r], cmap='Greens', alpha=0.5)
-                else:
-                    axs[c][r].imshow(data[r], cmap='gray')
-                    axs[c][r].imshow(seg[r], cmap='Reds', alpha=0.5)
-                    # axs[c][r].imshow(data[11 + 1 * r], cmap='gray')
-                    # axs[c][r].imshow(seg[11 + 1 * r], cmap='Reds', alpha=0.5)
-
-        save_path = os.path.join(self.save_dir, f'{epoch}.png')
-        plt.savefig(save_path, dpi=200)
-        plt.close('all')
+        self.plot(epoch, logs=None)
 
     def plot(self, epoch, logs=None):
+        """
+        col 1. 원본
+        col 2. label
+        col 3. 원본 + label
+        col 4. 원본 + prediction
+        """
         epoch += 1
-        cols, rows = 2, 5
+        ylabels = ['Data', 'Lable', 'Data + Lable', 'Prediction', 'Data + Prediction']
+        cols, rows = len(ylabels), self.num_show
         figure, axs = plt.subplots(cols, rows, figsize=(rows * 3, cols * 3))
         figure.suptitle(f'Epoch: "{epoch}"', fontsize=10)
         figure.tight_layout()
 
-        stack = []
-        stack_seg = []
-        for data, seg in self.dataset:
-            pred = self.model(data)
-            stack.append(pred)
-            stack_seg.append(seg)
+        [axs[i][0].set_ylabel(l, fontsize=14) for i, l in enumerate(ylabels)]
 
-        data = np.concatenate(stack, 0)
-        seg = np.concatenate(stack_seg, 0)
-        data, seg, pred = np.squeeze(data), np.squeeze(tf.argmax(seg, -1)), np.squeeze(tf.argmax(pred, -1))
-        adc, dwi = np.split(data, 2, 0)
-        adc_seg, dwi_seg = np.split(pred, 2, 0)
-        seg, _ = np.split(seg, 2, 0)
+        inputs, preds, labels = [], [], []
+        for data, seg in self.dataset: # take, B, H, W, C
+            inputs.append(data)
+            preds.append(self.model(data))
+            labels.append(seg)
+
+        """
+        병렬 처리를 하지 않을 경우 코드는 더 간결할 수 있다.
+        대신, Batch size 를 1로 설정하고 모델에 각각 입력해야 한다.
+        """
+        inputs = tf.squeeze(inputs)
+        labels = tf.squeeze(tf.argmax(labels, -1))
+        preds = tf.squeeze(tf.argmax(preds, -1))
+        inputs = tf.reshape(inputs, [-1, *inputs.shape[2:]])
+        labels = tf.reshape(labels, [-1, *labels.shape[2:]])
+        preds = tf.reshape(preds, [-1, *preds.shape[2:]])
 
         for c in range(cols):
             for r in range(rows):
-                axs[c][r].set_xticks([])
-                axs[c][r].set_yticks([])
+                axs[c][r].yaxis.tick_right()
+                # axs[c][r].set_xticks([])
+                # axs[c][r].set_yticks([])
                 if c == 0:
-                    axs[c][r].imshow(adc[11 + 1*r], cmap='gray')
-                    axs[c][r].imshow(adc_seg[11 + 1*r], cmap='Greens', alpha=0.5)
-                if c == 1:
-                    axs[c][r].imshow(dwi[11 + 1 * r], cmap='gray')
-                    axs[c][r].imshow(dwi_seg[11 + 1 * r], cmap='Greens', alpha=0.5)
-                if c == 2:
-                    axs[c][r].imshow(adc[11 + 1 * r], cmap='gray')
-                    axs[c][r].imshow(seg[11 + 1 * r], cmap='Reds', alpha=0.5)
+                    axs[c][r].imshow(inputs[r])
+                elif c == 1:
+                    axs[c][r].imshow(labels[r], cmap='rainbow', alpha=0.5)
+                elif c == 2:
+                    axs[c][r].imshow(inputs[r])
+                    axs[c][r].imshow(labels[r], cmap='rainbow', alpha=0.2)
+                elif c == 3:
+                    axs[c][r].imshow(preds[r], cmap='rainbow', alpha=0.5)
                 else:
-                    axs[c][r].imshow(dwi[11 + 1 * r], cmap='gray')
-                    axs[c][r].imshow(seg[11 + 1 * r], cmap='Reds', alpha=0.5)
+                    axs[c][r].imshow(inputs[r])
+                    axs[c][r].imshow(preds[r], cmap='rainbow', alpha=0.2)
 
         save_path = os.path.join(self.save_dir, f'{epoch}.png')
         plt.savefig(save_path, dpi=200)

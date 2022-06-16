@@ -4,18 +4,27 @@ import numpy as np
 ########################################################################################################################
 # Similarity Metric
 ########################################################################################################################
+
 ########################################################################################################################
 """ Symmetrity """
 ########################################################################################################################
 class _BASE(tf.keras.metrics.Metric):
-    def __init__(self, num_classes, argmax=True, name=None, dtype=None, **kwargs):
+    def __init__(self, num_classes, target=None, argmax=True, name=None, dtype=None, **kwargs):
         super(_BASE, self).__init__(name=name, dtype=dtype, **kwargs)
         self.num_classes = num_classes
+        normalize_tuple = lambda x:[x] if isinstance(x, int) else x
+        self.target = normalize_tuple(target) if target != None else [i for i in range(1, num_classes)]
+        self.non_target = [i for i in range(num_classes) if i not in self.target]
+        if True in tf.math.greater_equal(self.target, num_classes):
+            raise ValueError(
+                f'Target label value must lower than num_class value, {target} < {num_classes}'
+            )
         self.argmax = argmax
         self.CM = self.add_weight(
             'confusion_matrix',
             shape=(num_classes, num_classes),
             initializer=tf.compat.v1.zeros_initializer)
+
 
     def band_part_except_diag(self, CM, mode=0):
         if mode == 1:
@@ -28,12 +37,19 @@ class _BASE(tf.keras.metrics.Metric):
             raise ValueError(f'mode value must be 1 or -1, but accepted {mode}')
         return tf.where(condition, CM, 0)
 
-    def process_confusion_matrix(self):
-        self.TN = self.CM[0][0]
-        self.TP = tf.reduce_sum(tf.linalg.diag_part(self.CM)[1:])
-        self.FP = tf.reduce_sum(tf.linalg.set_diag(self.CM, np.zeros([self.num_classes]))[:, 1:])
-        self.FN = tf.reduce_sum(tf.linalg.set_diag(self.CM, np.zeros([self.num_classes]))[1:, :1])
-        assert tf.reduce_sum(self.CM) == self.TN + self.TP + self.FP + self.FN
+    def process_confusion_matrix(self, ):
+        diag = tf.linalg.diag_part(self.CM)
+        TP = tf.gather(diag, self.target)
+        TN = tf.gather(diag, self.non_target)
+
+        zeros_diag = tf.linalg.set_diag(self.CM, np.zeros([self.num_classes]))
+        FP = [zeros_diag[:, i] for i in self.target]
+        FN = [zeros_diag[:, i] for i in self.non_target]
+
+        self.TP = tf.reduce_sum(TP)
+        self.TN = tf.reduce_sum(TN)
+        self.FP = tf.reduce_sum(FP)
+        self.FN = tf.reduce_sum(FN)
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         y_true = tf.cast(y_true, self._dtype) # None 일 경우 float 할당
@@ -61,29 +77,21 @@ class _BASE(tf.keras.metrics.Metric):
 
     def reset_state(self):
         tf.keras.backend.set_value(
-            self.CM, np.zeros((self.num_classes, self.num_classes)))
-
+            self.CM, np.zeros((self.num_classes, self.num_classes))
+        )
     def get_config(self):
         config = super(_BASE, self).get_config()
-        # config.update({'num_classes': self.num_classes})
+        config.update({
+            'num_classes': self.num_classes
+        })
 
         return config
 
 ########################################################################################################################
-class TP_leison(_BASE):
-    """ for lesion only """
-    def __init__(self, num_classes, name='TP_leison', dtype=None, **kwargs):
-        super(TP_leison, self).__init__(num_classes=num_classes, name=name, dtype=dtype, **kwargs)
-
-    def result(self):
-        super().result()
-        return self.CM[2][-1] / tf.reduce_sum(self.CM[2])
-
-########################################################################################################################
 class DSC(_BASE):
     """ Dice Similarity Coefficients == F1 score """
-    def __init__(self, num_classes, name='DSC', dtype=None, **kwargs):
-        super(DSC, self).__init__(num_classes=num_classes, name=name, dtype=dtype, **kwargs)
+    def __init__(self, num_classes, target=None, name='DSC', dtype=None, **kwargs):
+        super(DSC, self).__init__(num_classes=num_classes, target=target, name=name, dtype=dtype, **kwargs)
 
     def result(self):
         super().result()
@@ -94,8 +102,8 @@ class DSC(_BASE):
 ########################################################################################################################
 class RVD(_BASE):
     """ relative volume difference """
-    def __init__(self, num_classes, name='RVD', dtype=None, **kwargs):
-        super(RVD, self).__init__(num_classes=num_classes, name=name, dtype=dtype, **kwargs)
+    def __init__(self, num_classes, target=None, name='RVD', dtype=None, **kwargs):
+        super(RVD, self).__init__(num_classes=num_classes, target=target, name=name, dtype=dtype, **kwargs)
 
     def result(self):
         super().result()
@@ -106,8 +114,8 @@ class RVD(_BASE):
 ########################################################################################################################
 class JSC(_BASE):
     """ Jaccard Similarity Coefficient """
-    def __init__(self, num_classes, name='JSC', dtype=None, **kwargs):
-        super(JSC, self).__init__(num_classes=num_classes, name=name, dtype=dtype, **kwargs)
+    def __init__(self, num_classes, target=None, name='JSC', dtype=None, **kwargs):
+        super(JSC, self).__init__(num_classes=num_classes, target=target, name=name, dtype=dtype, **kwargs)
 
     def result(self):
         super().result()
@@ -117,8 +125,8 @@ class JSC(_BASE):
 
 #
 class Precision(_BASE):
-    def __init__(self, num_classes, name='Precision', dtype=None, **kwargs):
-        super(Precision, self).__init__(num_classes=num_classes, name=name, dtype=dtype, **kwargs)
+    def __init__(self, num_classes, target=None, name='Precision', dtype=None, **kwargs):
+        super(Precision, self).__init__(num_classes=num_classes, target=target, name=name, dtype=dtype, **kwargs)
 
     def result(self):
         super().result()
@@ -127,8 +135,8 @@ class Precision(_BASE):
             self.TP + self.FP)
 #
 class Recall(_BASE):
-    def __init__(self, num_classes, name='Recall', dtype=None, **kwargs):
-        super(Recall, self).__init__(num_classes=num_classes, name=name, dtype=dtype, **kwargs)
+    def __init__(self, num_classes, target=None, name='Recall', dtype=None, **kwargs):
+        super(Recall, self).__init__(num_classes=num_classes, target=target, name=name, dtype=dtype, **kwargs)
 
     def result(self):
         super().result()
@@ -138,9 +146,9 @@ class Recall(_BASE):
 
 
 class F_Score(_BASE):
-    def __init__(self, num_classes, beta=2, name='F_Score', dtype=None, **kwargs):
+    def __init__(self, num_classes, target=None, beta=2, name='F_Score', dtype=None, **kwargs):
         name = f'F{beta}_Score' if beta is not None else name
-        super(F_Score, self).__init__(num_classes=num_classes, name=name, dtype=dtype, **kwargs)
+        super(F_Score, self).__init__(num_classes=num_classes, target=target, name=name, dtype=dtype, **kwargs)
         self.beta = beta
     def result(self):
         super().result()
@@ -205,9 +213,11 @@ class surface_distance(tf.keras.metrics.Metric):
         return np.concatenate([distance[contour] for distance, contour in tmp])
 
     def get_config(self):
-        config = {'num_classes': self.num_classes}
-        base_config = super(surface_distance, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super(_BASE, self).get_config()
+        config.update({
+            'num_classes': self.num_classes
+        })
+        return config
 
 ########################################################################################################################
 class ASSD(surface_distance):
