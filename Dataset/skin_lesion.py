@@ -58,8 +58,8 @@ def parse_fn(x, y):
 
 def build(batch_size, validation_split=None):
     assert len(data_paths) == len(seg_paths)
-    if validation_split != None:
-        assert 0 <= validation_split <= 0.5
+    if validation_split != None and validation_split != 0:
+        assert 0 < validation_split <= 0.5
         val_count = int(len(data_paths) * validation_split)
         buffer_size = (len(data_paths) - val_count) * FLAGS.repeat
 
