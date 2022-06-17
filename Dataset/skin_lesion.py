@@ -94,7 +94,8 @@ def load(paths, batch_size, buffer_size=None, drop=True):
         drop_remainder=drop,
     )
     if buffer_size != None:
-        dataset.shuffle(
+        print(f'[Dataset][Shuffle] buffer_size = {buffer_size}')
+        dataset = dataset.shuffle(
             buffer_size,
             reshuffle_each_iteration=True
         )
