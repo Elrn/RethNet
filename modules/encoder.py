@@ -81,18 +81,6 @@ def REthinker(filters, patch_size=None):
         output:
             [B, psz*psz, n_patch, n_patch, channel]
         """
-
-        def self_attention(x):
-            x = LayerNormalization()(x)
-            Q, K, V = [Dense(dim)(x) for _ in range(3)]
-            score = tf.matmul(Q, K, transpose_b=True)  # B, psz, psz, I, I
-            dims = tf.cast(K.shape[-1], tf.float32)  # emb_dims
-            scaled_score = score / tf.math.sqrt(dims) + EPSILON
-            weights = tf.nn.softmax(scaled_score, axis=-1)
-            # weights = Dropout(drop_rate)(weights)
-            output = tf.matmul(weights, V)  # B, psz, psz, I, ch
-            return output
-
         if mode == 0:
             x = Conv3D(filters, kernel=3, padding='same',
                        # activation='tanh'
@@ -102,14 +90,6 @@ def REthinker(filters, patch_size=None):
 
         elif mode == 1:
             x = ConvLSTM2D(filters, 1, return_sequences=True)(x) # activation='tanh'
-
-        elif mode == 2:
-            # x = tf.transpose(x, [0, 2, 3, 1, 4]) # [B, n_patch, n_patch, psz*psz, channel]
-            _, psz2, xnp, ynp, ch = x.shpae
-            x_ = tf.reshape(x, [-1, psz2, xnp*ynp, ch])
-            x_ = tf.reduce_mean(x_, 1)
-            x_ = self_attention(x_)
-            x *= x_
         else:
             raise ValueError(f'input mode: {mode}, is not supported.')
         return x
@@ -187,23 +167,53 @@ def Double_Convolution(filters, pool=2):
     return main
 
 ########################################################################################################################
-def tmp(x, filters, kernel=3, pool=2):
-    def module(x):
-        x = BatchNormalization()(x)
-        x = Activation('relu')(x)
-        x = Conv2D(filters, kernel, padding='same')(x)
-        x = BatchNormalization()(x)
-        x_ = Activation('relu')(x)
-        tmp = Dense(filters)(x_)
-        prob = tf.nn.softmax(x)
-        x = x_ * prob
-        x = DepthwiseConv2D(kernel, padding='same')(x)
-        x = DepthwiseConv2D(kernel, padding='same')(x)
-        x += x_
+def self_attention():
+    def channel(x):
+        inputs = x
+        _, H, W, C = x.shape
+        Q = Dense(1)(x)
+        V = Dense(C//2)(x)
+
+        Q = tf.reshape(Q, [-1, H*W, 1])
+        Q = tf.softmax(Q)
+        V = tf.reshape(V, [-1, H*W, C//2])
+
+        x = tf.matmul(Q, V, transpose_a=True)
+        x = Dense(C)(x)
+        x = LayerNormalizatoin()(x)
+        x = tf.math.sigmoid(x)
+        x *= inputs
         return x
 
-    x = module(x)
-    x = module(x)
-    if pool:
-        x = MaxPool2D(pool, pool)(x)
-    return x
+    def spatial(x):
+        inputs = x
+        _, H, W, C = x.shape
+        Q = Dense(C//2)(x)
+        V = Dense(C//2)(x) # HW, C//2
+
+        Q = GlobalAveragePooling()(Q)
+        Q = tf.reshape(Q, [-1, 1, C//2])
+
+        x = tf.matmul(V, Q, transpose_b=True)
+        x = tf.reshape(x, [-1, H, W, 1])
+        x = tf.math.sigmoid(x)
+        x *= inputs
+        return x
+
+    def main(x):
+        x = BatchNormalization()(x)
+        x = tf.nn.relu(x)
+        x = channel(x) + spatial(x)
+        x *= layers.SE(0.25)(x)
+        return x
+    return main
+
+def base_2(filters, pool=2):
+    def main(x):
+        x = Xception(filters)(x)
+        x = self_attention()(x)
+        skip = x
+        if pool != None:
+            x = modules.pooling(pool, pool)(x)
+        return x, skip
+    return main
