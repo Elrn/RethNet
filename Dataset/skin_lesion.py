@@ -12,11 +12,11 @@ seg_dir = join(base_dir, 'grayscale', '*.png')
 data_paths = glob(data_dir)
 seg_paths = glob(seg_dir)
 # img_size = [480, 320]
-img_size = [120, 80]
-input_shape = [*img_size, 3]
-seg_shape = [*img_size, 5]
+img_size = [240, 160]
 num_class = 5
-rank = 2
+input_shape = [*img_size, 3]
+seg_shape = [*img_size, num_class]
+rank = len(img_size)
 target_label = 4 # Metric 인자로 사용
 
 """
@@ -68,7 +68,7 @@ def build(batch_size, validation_split=None):
 
         paths_set = (data_paths[:val_count], seg_paths[:val_count])
         val_dataset = load(paths_set, batch_size)
-        print(f'Validation dataset length: {val_count} of Total length: {len(data_paths)}')
+        print(f'[Dataset] Validation length: {val_count} | Total length: {len(data_paths)}')
         return dataset, val_dataset
     else:
         dataset = load((data_paths, seg_paths), batch_size)
