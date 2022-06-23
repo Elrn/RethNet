@@ -148,10 +148,21 @@ def WCE(distance_rate=0.04):
         FN = tf.clip_by_value(FN * y_pred, EPSILON, 1. - EPSILON)
         return ratio * -tf.math.log(FN)
 
+    slice_ = lambda x, idx : tf.split(x, x.shape[-1], axis=-1)[idx]
+    def label_relation(y_true, y_pred, condition=None):
+        pred_map = get_mask(y_pred)
+        condition = [[4, 5, 0.5]]
+
+        slice_(y_true, 4) * slice_(pred_map, 5) * scale
+
+        condition = tf.equal(y_true - get_mask(y_pred), -1)
+        FP = tf.where(condition, 1., 0.) # [B (I) C]
+        return
+
     def main(y_true, y_pred):
         loss = cross_entropy(y_true, y_pred)
         ### Weighting
-        loss *= get_distance_weight_map(y_true)
+        # loss *= get_distance_weight_map(y_true)
         loss *= get_scale_factor(y_true, y_pred)
         loss *= freq_weight_map(y_true, y_pred)
         return tf.reduce_sum(loss)
