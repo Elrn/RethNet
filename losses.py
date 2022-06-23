@@ -160,6 +160,7 @@ def WCE(distance_rate=0.04):
             scale_map = slice_(pred_map, src_label) * slice_(y_true, target_label) * scale
             maps.append(scale_map)
         scale_map = mul(maps)
+        scale_map = tf.where(tf.equal(scale_map, 0), 1., scale_map)
         return scale_map
 
     def main(y_true, y_pred):
