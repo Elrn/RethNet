@@ -180,7 +180,7 @@ def self_attention():
 
         x = tf.matmul(Q, V, transpose_a=True)
         x = Dense(C)(x)
-        x = LayerNormalizatoin()(x)
+        x = LayerNormalization()(x)
         x = tf.math.sigmoid(x)
         x *= inputs
         return x
@@ -191,7 +191,7 @@ def self_attention():
         Q = Dense(C//2)(x)
         V = Dense(C//2)(x) # HW, C//2
 
-        Q = GlobalAveragePooling()(Q)
+        Q = GlobalAveragePooling2D()(Q)
         Q = tf.reshape(Q, [-1, 1, C//2])
 
         x = tf.matmul(V, Q, transpose_b=True)
@@ -217,3 +217,5 @@ def base_2(filters, pool=2):
             x = modules.pooling(pool, pool)(x)
         return x, skip
     return main
+
+########################################################################################################################
