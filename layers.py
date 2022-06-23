@@ -123,8 +123,8 @@ class Patch(Layer):
         config.update({
             "patch_size": self.patch_size,
             "strides": self.strides,
-            "rate": self.rate,
-            "padding": self.padding
+            # "rate": self.rate,
+            # "padding": self.padding
         })
         return config
 
