@@ -4,6 +4,7 @@ from tensorflow.python.keras.losses import *
 from keras.utils import losses_utils
 import tensorflow as tf
 from tensorflow import reduce_mean as E
+from functools import reduce
 
 import numpy as np
 from scipy import ndimage
@@ -149,22 +150,25 @@ def WCE(distance_rate=0.04):
         return ratio * -tf.math.log(FN)
 
     slice_ = lambda x, idx : tf.split(x, x.shape[-1], axis=-1)[idx]
-    def label_relation(y_true, y_pred, condition=None):
+    mul = lambda arr: reduce(lambda x, y: x * y, arr)
+    def label_relation(y_true, y_pred, condition:list=None):
         pred_map = get_mask(y_pred)
-        condition = [[4, 5, 0.5]]
+        condition = [[5, 4, 1.3]]
 
-        slice_(y_true, 4) * slice_(pred_map, 5) * scale
-
-        condition = tf.equal(y_true - get_mask(y_pred), -1)
-        FP = tf.where(condition, 1., 0.) # [B (I) C]
-        return
+        maps = []
+        for src_label, target_label, scale in condition:
+            scale_map = slice_(pred_map, src_label) * slice_(y_true, target_label) * scale
+            maps.append(scale_map)
+        scale_map = mul(maps)
+        return scale_map
 
     def main(y_true, y_pred):
         loss = cross_entropy(y_true, y_pred)
         ### Weighting
-        # loss *= get_distance_weight_map(y_true)
+        loss *= get_distance_weight_map(y_true)
         loss *= get_scale_factor(y_true, y_pred)
         loss *= freq_weight_map(y_true, y_pred)
+        loss *= label_relation(y_true, y_pred)
         return tf.reduce_sum(loss)
     return main
 
