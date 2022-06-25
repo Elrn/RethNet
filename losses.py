@@ -60,14 +60,14 @@ def WCE(distance_rate=0.04):
             return x
         return tf.cast(tf_fn(y_true), tf.float32)
 
-    def frequency_ratio_by_class(y_true):
+    def frequency_ratio_by_class(y_true, axis=None):
         """
         patch 혹은 slice 의 경우 일부 label 이 없을 수 있다. 따라서 수동으로 기입해주는 것이 좋다.
         :return [C]
         """
         rank = len(y_true.shape)
         total = np.prod(y_true.shape[:-1]) # BatchNormalization
-        axis = [i for i in range(rank - 1)] # until channel axis
+        axis = [i for i in range(rank - 1)] if axis==None else axis
         amount_by_class = tf.reduce_sum(y_true, axis)
         ratio = amount_by_class / total
         return ratio
@@ -163,13 +163,35 @@ def WCE(distance_rate=0.04):
         scale_map = tf.where(tf.equal(scale_map, 0), 1., scale_map)
         return scale_map
 
+    def block_overlapping(y_true, y_pred):
+        """
+        각 class를 많이 예측하지 못할수록 많은 weight 값을 부여, precision만 높은 현상을 방지
+        """
+        y_pred = tf.argmax(y_pred, -1)
+        y_pred = tf.one_hot(y_pred, 3)
+        weight_fn = lambda x : 3*((x-1)**2) + 1
+        rank = len(y_true.shape)
+        axis = [i for i in range(1, rank - 1)]
+        sum_t = tf.reduce_sum(y_true, axis, keepdims=True)
+        sum_p = tf.reduce_sum(y_pred, axis, keepdims=True)
+        condition = tf.math.greater(sum_t, sum_p) # 적게 예측한 부분
+        ratio_diff_map = tf.math.divide_no_nan(sum_p, sum_t)
+        channel_weight = tf.where(condition, weight_fn(ratio_diff_map), 1)
+        # 잘못 예측한 부분만을 추출
+        target = tf.where(condition, y_true, 0)
+        weighted_pixel = tf.reduce_sum(target * channel_weight, -1, keepdims=True)
+        weight_map = weighted_pixel * y_pred
+        weight_map = tf.where(weight_map == 0., 1., weight_map)
+        return weight_map
+
     def main(y_true, y_pred):
         loss = cross_entropy(y_true, y_pred)
         ### Weighting
         loss *= get_distance_weight_map(y_true)
-        # loss *= get_scale_factor(y_true, y_pred)
-        # loss *= freq_weight_map(y_true, y_pred)
-        loss *= label_relation(y_true, y_pred)
+        loss *= get_scale_factor(y_true, y_pred)
+        loss *= freq_weight_map(y_true, y_pred)
+        # loss *= label_relation(y_true, y_pred)
+        loss *= block_overlapping(y_true, y_pred)
         return tf.reduce_sum(loss)
     return main
 
