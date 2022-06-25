@@ -153,7 +153,7 @@ def WCE(distance_rate=0.04):
     mul = lambda arr: reduce(lambda x, y: x * y, arr)
     def label_relation(y_true, y_pred, condition:list=None):
         pred_map = get_mask(y_pred)
-        condition = [[5, 4, 1.3]]
+        condition = [[1, 2, 1.3]]
 
         maps = []
         for src_label, target_label, scale in condition:
@@ -167,8 +167,8 @@ def WCE(distance_rate=0.04):
         loss = cross_entropy(y_true, y_pred)
         ### Weighting
         loss *= get_distance_weight_map(y_true)
-        loss *= get_scale_factor(y_true, y_pred)
-        loss *= freq_weight_map(y_true, y_pred)
+        # loss *= get_scale_factor(y_true, y_pred)
+        # loss *= freq_weight_map(y_true, y_pred)
         loss *= label_relation(y_true, y_pred)
         return tf.reduce_sum(loss)
     return main
