@@ -15,12 +15,13 @@ FLAGS = flags.FLAGS
 
 ########################################################################################################################
 class monitor(tf.keras.callbacks.Callback):
-    def __init__(self, save_dir, dataset=None, num_show=30, fig_size_rate=3):
+    def __init__(self, save_dir, dataset=None, num_show=30, fig_size_rate=3, name=None):
         super(monitor, self).__init__()
         self.save_dir = save_dir
         self.dataset = dataset.take(num_show // FLAGS.bsz + 1)
         self.num_show = num_show
         self.fig_size_rate = fig_size_rate
+        self.name = name
     #
     def on_epoch_end(self, epoch, logs=None):
         self.plot(epoch, logs=None)
@@ -76,7 +77,8 @@ class monitor(tf.keras.callbacks.Callback):
                     axs[c][r].imshow(inputs[r])
                     axs[c][r].imshow(preds[r], cmap='rainbow', alpha=0.2)
 
-        save_path = os.path.join(self.save_dir, f'{epoch}.png')
+        filename = f'{epoch}.png' if self.name != None else self.name
+        save_path = os.path.join(self.save_dir, filename)
         plt.savefig(save_path, dpi=200)
         plt.close('all')
 
