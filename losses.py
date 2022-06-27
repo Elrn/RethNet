@@ -42,7 +42,7 @@ def CE(y_true, y_pred):
     return loss  # B, H, W, C
 
 ########################################################################################################################
-def WCE(distance_rate=0.04):
+def WCE(distance_rate=0.04, norm=True):
     """
     Positive Loss의 경우 background 를 넓혀 loss를 줄이려는 경향을 보임
     FN Loss의 경우 FP 부분을 pred_count에 반영할 것인지 여부 확인
@@ -153,7 +153,7 @@ def WCE(distance_rate=0.04):
     mul = lambda arr: reduce(lambda x, y: x * y, arr)
     def label_relation(y_true, y_pred, condition:list=None):
         pred_map = get_mask(y_pred)
-        condition = [[1, 2, 1.3]]
+        condition = [[1, 2, 2.0]]
 
         maps = []
         for src_label, target_label, scale in condition:
@@ -184,7 +184,19 @@ def WCE(distance_rate=0.04):
         weight_map = tf.where(weight_map == 0., 1., weight_map)
         return weight_map
 
+    def min_max_normalization(x, rank):
+        scale_fn = lambda x:-14*((x-0.5)**4)+1
+        axis = [i for i in range(1, rank)] # B, 1, 1, 1(c)
+        batch_wise_loss = tf.reduce_sum(x, axis)
+        min = tf.reduce_min(batch_wise_loss)
+        max = tf.reduce_max(batch_wise_loss)
+        norm = (batch_wise_loss - min) / max
+        scaled_factor = scale_fn(norm)
+
+        return batch_wise_loss * scaled_factor
+
     def main(y_true, y_pred):
+        rank = len(y_true.shape)
         loss = cross_entropy(y_true, y_pred)
         ### Weighting
         loss *= get_distance_weight_map(y_true)
@@ -192,6 +204,8 @@ def WCE(distance_rate=0.04):
         loss *= freq_weight_map(y_true, y_pred)
         # loss *= label_relation(y_true, y_pred)
         loss *= block_overlapping(y_true, y_pred)
+        if norm == True:
+            loss = min_max_normalization(loss, rank)
         return tf.reduce_sum(loss)
     return main
 
