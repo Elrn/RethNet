@@ -77,7 +77,7 @@ class monitor(tf.keras.callbacks.Callback):
                     axs[c][r].imshow(inputs[r])
                     axs[c][r].imshow(preds[r], cmap='rainbow', alpha=0.2)
 
-        filename = f'{epoch}.png' if self.name != None else self.name
+        filename = f'{epoch}.png' if self.name != None else self.name + f'{epoch}.png'
         save_path = os.path.join(self.save_dir, filename)
         plt.savefig(save_path, dpi=200)
         plt.close('all')
