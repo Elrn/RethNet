@@ -42,7 +42,7 @@ def CE(y_true, y_pred):
     return loss  # B, H, W, C
 
 ########################################################################################################################
-def WCE(distance_rate=0.04, norm=True):
+def WCE(norm=True):
     """
     Positive Loss의 경우 background 를 넓혀 loss를 줄이려는 경향을 보임
     FN Loss의 경우 FP 부분을 pred_count에 반영할 것인지 여부 확인
@@ -50,15 +50,26 @@ def WCE(distance_rate=0.04, norm=True):
     def get_distance_weight_map(y_true):
         """
         patch의 경우 상대적 distance 추가 필요?
+        https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html
         :return: [B, (I), C]
         """
-        @tf.function(input_signature=[tf.TensorSpec(y_true.shape, tf.float32)])
+        def get_distance_scale(y_true):
+            x = tf.cast(y_true[1:-1], tf.float32)
+            x = tf.norm(x, 2)
+            # 320*480의 norm값 약 500의 scale을 0.025로 두고 입력 값 대비 값을 변경
+            scale = 0.00005 * x # 0.025 * (x/500)
+            return scale
+
+        y_true = tf.where(y_true==0, 1, 0) # 반전
+        sampling = get_distance_scale(y_true)
+        @tf.function(input_signature=[tf.TensorSpec(y_true.shape, tf.int32)])
         def tf_fn(x):
             x = 1. + tf.numpy_function(
-                ndimage.distance_transform_edt, [x, distance_rate], np.double
+                ndimage.distance_transform_edt, [x, sampling], np.double
             )
             return x
-        return tf.cast(tf_fn(y_true), tf.float32)
+        scale_map = tf.cast(tf_fn(y_true), tf.float32)
+        return scale_map
 
     def frequency_ratio_by_class(y_true, axis=None):
         """
@@ -154,7 +165,6 @@ def WCE(distance_rate=0.04, norm=True):
     def label_relation(y_true, y_pred, condition:list=None):
         pred_map = get_mask(y_pred)
         condition = [[1, 2, 2.0]]
-
         maps = []
         for src_label, target_label, scale in condition:
             scale_map = slice_(pred_map, src_label) * slice_(y_true, target_label) * scale
@@ -165,35 +175,45 @@ def WCE(distance_rate=0.04, norm=True):
 
     def block_overlapping(y_true, y_pred):
         """
-        각 class를 많이 예측하지 못할수록 많은 weight 값을 부여, precision만 높은 현상을 방지
+        각 class를 많이 예측하지 못할수록 많은 weight 값을 부여
+        특정 label의 precision만 높은 현상을 방지
+
+        작은 크기(많은 pixel을 보유가지 못한) object는 해당 scale 값을 많이 받지 못한다.
         """
+        weight_fn = lambda x : 3*((x-1)**2) + 1
+
         y_pred = tf.argmax(y_pred, -1)
         y_pred = tf.one_hot(y_pred, 3)
-        weight_fn = lambda x : 3*((x-1)**2) + 1
+
         rank = len(y_true.shape)
         axis = [i for i in range(1, rank - 1)]
+
         sum_t = tf.reduce_sum(y_true, axis, keepdims=True)
         sum_p = tf.reduce_sum(y_pred, axis, keepdims=True)
-        condition = tf.math.greater(sum_t, sum_p) # 적게 예측한 부분
+
+        condition = tf.math.greater(sum_t, sum_p) # 적게 예측한 class
         ratio_diff_map = tf.math.divide_no_nan(sum_p, sum_t)
         channel_weight = tf.where(condition, weight_fn(ratio_diff_map), 1)
         # 잘못 예측한 부분만을 추출
-        target = tf.where(condition, y_true, 0)
-        weighted_pixel = tf.reduce_sum(target * channel_weight, -1, keepdims=True)
-        weight_map = weighted_pixel * y_pred
+        target = tf.where(condition, y_true, 0) # output_shape = y_ture.shape
+        scale_per_pixel = tf.reduce_sum(target * channel_weight, -1, keepdims=True) # B, I, 1
+        weight_map = scale_per_pixel * y_pred
         weight_map = tf.where(weight_map == 0., 1., weight_map)
         return weight_map
 
-    def min_max_normalization(x, rank):
-        scale_fn = lambda x:-14*((x-0.5)**4)+1
-        axis = [i for i in range(1, rank)] # B, 1, 1, 1(c)
-        batch_wise_loss = tf.reduce_sum(x, axis)
-        min = tf.reduce_min(batch_wise_loss)
-        max = tf.reduce_max(batch_wise_loss)
-        norm = (batch_wise_loss - min) / max
-        scaled_factor = scale_fn(norm)
-
-        return batch_wise_loss * scaled_factor
+    # def min_max_normalization(x, rank):
+    #     # scale_fn = lambda x:-14*((x-0.5)**4)+1
+    #     # scale_fn = lambda x:-4*((x-0.65)**4)+1
+    #     scale_fn = lambda x:1.2*(x-0.2)**2+1
+    #     axis = [i for i in range(1, rank)] # B, 1, 1, 1(c)
+    #     batch_wise_loss = tf.reduce_sum(x, axis)
+    #     min = tf.reduce_min(batch_wise_loss)
+    #     batch_wise_loss -= min
+    #     max = tf.reduce_max(batch_wise_loss)
+    #     norm = batch_wise_loss / max
+    #     scaled_factor = scale_fn(norm)
+    #
+    #     return batch_wise_loss * scaled_factor
 
     def main(y_true, y_pred):
         rank = len(y_true.shape)
@@ -204,8 +224,8 @@ def WCE(distance_rate=0.04, norm=True):
         loss *= freq_weight_map(y_true, y_pred)
         # loss *= label_relation(y_true, y_pred)
         loss *= block_overlapping(y_true, y_pred)
-        if norm == True:
-            loss = min_max_normalization(loss, rank)
+        # if norm == True:
+        #     loss = min_max_normalization(loss, rank)
         return tf.reduce_sum(loss)
     return main
 
