@@ -65,19 +65,20 @@ class monitor(tf.keras.callbacks.Callback):
                 # axs[c][r].set_xticks([])
                 # axs[c][r].set_yticks([])
                 if c == 0:
-                    axs[c][r].imshow(inputs[r])
-                elif c == 1:
                     axs[c][r].imshow(labels[r], cmap='rainbow', alpha=0.5)
-                elif c == 2:
+
+                elif c == 1:
                     axs[c][r].imshow(inputs[r])
                     axs[c][r].imshow(labels[r], cmap='rainbow', alpha=0.2)
+                elif c == 2:
+                    axs[c][r].imshow(inputs[r])
                 elif c == 3:
                     axs[c][r].imshow(preds[r], cmap='rainbow', alpha=0.5)
                 else:
                     axs[c][r].imshow(inputs[r])
                     axs[c][r].imshow(preds[r], cmap='rainbow', alpha=0.2)
 
-        filename = f'{epoch}.png' if self.name != None else self.name + f'-{epoch}.png'
+        filename = f'{epoch}.png' if self.name == None else self.name + f'-{epoch}.png'
         save_path = os.path.join(self.save_dir, filename)
         plt.savefig(save_path, dpi=200)
         plt.close('all')
