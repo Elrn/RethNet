@@ -100,7 +100,7 @@ def REthinker(filters, patch_size=None):
 
         x = BatchNormalization()(x)
         x = tf.nn.relu(x)
-        skip = layers.SE(0.125)(x)
+        skip = layers.SE(0.25)(x)
         x = tf.image.extract_patches(
             images=x,
             sizes=sizes,
@@ -217,5 +217,6 @@ def base_2(filters, pool=2):
             x = modules.pooling(pool, pool)(x)
         return x, skip
     return main
+
 
 ########################################################################################################################

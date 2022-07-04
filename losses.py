@@ -160,17 +160,18 @@ def WCE(norm=True):
         FN = tf.clip_by_value(FN * y_pred, EPSILON, 1. - EPSILON)
         return ratio * -tf.math.log(FN)
 
-    slice_ = lambda x, idx : tf.split(x, x.shape[-1], axis=-1)[idx]
-    mul = lambda arr: reduce(lambda x, y: x * y, arr)
     def label_relation(y_true, y_pred, condition:list=None):
+        slice_ = lambda x, idx : tf.split(x, x.shape[-1], axis=-1)[idx]
+
         pred_map = get_mask(y_pred)
-        condition = [[1, 2, 2.0]]
+        condition = [[3, 4, 1.5]]
         maps = []
         for src_label, target_label, scale in condition:
             scale_map = slice_(pred_map, src_label) * slice_(y_true, target_label) * scale
             maps.append(scale_map)
-        scale_map = mul(maps)
-        scale_map = tf.where(tf.equal(scale_map, 0), 1., scale_map)
+        maps = tf.concat(maps, -1)
+        scale_map = tf.reduce_prod(maps, [-1], keepdims=True)
+        scale_map = tf.where(scale_map==0., 1., scale_map)
         return scale_map
 
     def block_overlapping(y_true, y_pred):
@@ -179,11 +180,12 @@ def WCE(norm=True):
         특정 label의 precision만 높은 현상을 방지
 
         작은 크기(많은 pixel을 보유가지 못한) object는 해당 scale 값을 많이 받지 못한다.
+        lesion 예측을 저해할 수 있음
         """
-        weight_fn = lambda x : 3*((x-1)**2) + 1
+        weight_fn = lambda x : 0.3*((x-1)**2) + 1
 
         y_pred = tf.argmax(y_pred, -1)
-        y_pred = tf.one_hot(y_pred, 3)
+        y_pred = tf.one_hot(y_pred, y_true.shape[-1])
 
         rank = len(y_true.shape)
         axis = [i for i in range(1, rank - 1)]
@@ -201,31 +203,30 @@ def WCE(norm=True):
         weight_map = tf.where(weight_map == 0., 1., weight_map)
         return weight_map
 
-    # def min_max_normalization(x, rank):
-    #     # scale_fn = lambda x:-14*((x-0.5)**4)+1
-    #     # scale_fn = lambda x:-4*((x-0.65)**4)+1
-    #     scale_fn = lambda x:1.2*(x-0.2)**2+1
-    #     axis = [i for i in range(1, rank)] # B, 1, 1, 1(c)
-    #     batch_wise_loss = tf.reduce_sum(x, axis)
-    #     min = tf.reduce_min(batch_wise_loss)
-    #     batch_wise_loss -= min
-    #     max = tf.reduce_max(batch_wise_loss)
-    #     norm = batch_wise_loss / max
-    #     scaled_factor = scale_fn(norm)
-    #
-    #     return batch_wise_loss * scaled_factor
+    def min_max_normalization(x, rank):
+        # scale_fn = lambda x:-14*((x-0.5)**4)+1
+        # scale_fn = lambda x:-4*((x-0.65)**4)+1
+        # scale_fn = lambda x:1.2*(x-0.2)**2+1
+        scale_fn = lambda x:0.2*(x-0.33)**2.2+1
+        axis = [i for i in range(1, rank)] # B, 1, 1, 1(c)
+        batch_wise_loss = tf.reduce_sum(x, axis)
+        min = tf.reduce_min(batch_wise_loss)
+        batch_wise_loss -= min
+        max = tf.reduce_max(batch_wise_loss)
+        norm = batch_wise_loss / max
+        scaled_factor = scale_fn(norm)
+
+        return batch_wise_loss * scaled_factor
 
     def main(y_true, y_pred):
-        rank = len(y_true.shape)
         loss = cross_entropy(y_true, y_pred)
-        ### Weighting
         loss *= get_distance_weight_map(y_true)
         loss *= get_scale_factor(y_true, y_pred)
         loss *= freq_weight_map(y_true, y_pred)
         # loss *= label_relation(y_true, y_pred)
         loss *= block_overlapping(y_true, y_pred)
         # if norm == True:
-        #     loss = min_max_normalization(loss, rank)
+        #     loss = min_max_normalization(loss, len(y_true.shape))
         return tf.reduce_sum(loss)
     return main
 

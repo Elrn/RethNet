@@ -32,7 +32,4 @@ def assignment_function_according_to_data_rank():
     else:
         raise ValueError(f'D is must 2 or 3, not "{rank}".')
 
-
-
-
 BN_ACT = lambda x : tf.nn.relu(BatchNormalization()(x))

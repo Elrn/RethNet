@@ -5,19 +5,26 @@ import flags
 FLAGS = flags.FLAGS
 
 #######################################################################################################################
-base_dir = 'c:\\dataset\\skin lesion\\1\\'
-data_dir = join(base_dir, '원본', '*.jpg')
-seg_dir = join(base_dir, 'grayscale', '*.png')
+base_dir = 'c:\\dataset\\skin lesion'
 
-data_paths = glob(data_dir)
-seg_paths = glob(seg_dir)
-# img_size = [480, 320]
+data_dir = join(base_dir, 'data', 'origin', '*.jpg')
+# data_dir = join(base_dir, 'data', 'face', '*.jpg')
+
+# seg_dir = join(base_dir, 'seg', 'origin', '*.png')
+# seg_dir = join(base_dir, 'seg', '0123', '*.png')
+seg_dir = join(base_dir, 'seg', '01', '*.png')
+# seg_dir = join(base_dir, 'seg', 'lesion', '*.png')
+
+start_idx, end_idx = 0, -1
+data_paths = glob(data_dir)[start_idx:end_idx]
+seg_paths = glob(seg_dir)[start_idx:end_idx]
+# img_size = [480, 320] # 960, 630 # 1920, 1260
 img_size = [240, 160]
-num_class = 5
+num_class = 2
 input_shape = [*img_size, 3]
 seg_shape = [*img_size, num_class]
 rank = len(img_size)
-target_label = 4 # Metric 인자로 사용
+target_label = 1 # Metric 인자로 사용
 
 """
 0:"background",
@@ -61,8 +68,8 @@ def build(batch_size, validation_split=None):
     if validation_split != None and validation_split != 0:
         assert 0 < validation_split <= 0.5
         val_count = int(len(data_paths) * validation_split)
-        buffer_size = (len(data_paths) - val_count) * FLAGS.repeat
-
+        # buffer_size = (len(data_paths) - val_count) * FLAGS.repeat
+        buffer_size=None
         paths_set = (data_paths[val_count:], seg_paths[val_count:])
         dataset = load(paths_set, batch_size, buffer_size)
 
@@ -80,7 +87,7 @@ def load(paths, batch_size, buffer_size=None, drop=True):
     ).prefetch(
         tf.data.experimental.AUTOTUNE
     # ).interleave(
-    #     lambda x : tf.data.Dataset(x).map(parse_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE),
+    #     map(parse_fn, num_parallel_calls=tf.data.experimental.AUTOTUNE),
     #     cycle_length = tf.data.experimental.AUTOTUNE,
     #     num_parallel_calls = tf.data.experimental.AUTOTUNE
     # ).repeat(

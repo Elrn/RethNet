@@ -23,8 +23,10 @@ def main(*argv, **kwargs):
 
     ### Build model
     input = tf.keras.layers.Input(shape=input_shape)
-    output = models.FCN(num_class)(input)
-    model = tf.keras.Model(input, output, name=None)
+    model = models.FCN
+    model_name = model.__name__
+    output = model(num_class)(input)
+    model = tf.keras.Model(input, output, name=model_name)
 
     ### Compile model
     metric_list = [
@@ -34,11 +36,10 @@ def main(*argv, **kwargs):
         metrics.DSC(num_class, target_label),
         metrics.JSC(num_class, target_label),
     ]
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=FLAGS.lr),
                   loss=losses.WCE(),
                   metrics=metric_list,
                   )
-
     ### load weights
     ckpt_file_path = join(FLAGS.ckpt_dir, FLAGS.ckpt_file_name)
     filepath_to_load = callbacks.load_weights._get_most_recently_modified_file_matching_pattern(ckpt_file_path)
@@ -58,9 +59,11 @@ def main(*argv, **kwargs):
         # EarlyStopping(monitor='loss', min_delta=0, patience=5),
         # ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=2, verbose=0, min_delta=0.0001, cooldown=0, min_lr=0),
         # callbacks.setLR(0.0001),
+        callbacks.log(join(flags.log_dir, model_name)),
     ]
     if FLAGS.plot: # validation dataset 을 생성해야 한다.
         _callbacks.append(callbacks.monitor(FLAGS.plot_dir, dataset=val_dataset))
+        _callbacks.append(callbacks.monitor(FLAGS.plot_dir, dataset=dataset, name='train'))
 
     fit_args = {
         'x': dataset,

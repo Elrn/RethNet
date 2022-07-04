@@ -12,6 +12,25 @@ from tensorflow.python.keras import backend
 from keras.utils import io_utils
 import flags
 FLAGS = flags.FLAGS
+from pathlib import Path
+
+########################################################################################################################
+class log(tf.keras.callbacks.Callback):
+    def __init__(self, file_path, ext='.csv'):
+        super(log, self).__init__()
+        self.file_path = file_path + ext # 확장자는 callback 내에서 처리?
+
+    def on_epoch_end(self, epoch, logs=None):
+        epoch = {'epoch': epoch} # scalar to dict
+        logs = {**epoch, **logs}
+
+        is_key = Path(self.file_path).is_file()
+        f = open(self.file_path, 'a')
+        w = csv.writer(f)
+        if is_key != True:
+            w.writerow(logs.keys())
+        w.writerow(logs.values())
+        f.close()
 
 ########################################################################################################################
 class monitor(tf.keras.callbacks.Callback):
